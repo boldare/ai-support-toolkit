@@ -1,0 +1,37 @@
+# Template: Log Database Entry
+# Data file: data/log-database/log-types.yaml
+#
+# This template shows the schema for the log type database file.
+# The actual log-types.yaml file will contain many entries built from codebase + historical logs.
+
+# --- Metadata (top-level wrapper) ---
+metadata:
+  version: "1.0"
+  generated: "{date}"
+  source_commit: "{short_git_hash}"    # From: git rev-parse --short HEAD
+  total_log_types: 0
+  total_noise_patterns: 0
+  mapped_tickets: []                   # Ticket IDs processed by /update-log-database
+
+# --- Noise filter — log patterns to skip during analysis ---
+noise_patterns:
+  - id: noise_{descriptive_name}
+    pattern: "{regex_pattern_to_match}"
+    description: "{why_this_is_noise_and_can_be_filtered}"
+
+# --- Categorized log types ---
+log_types:
+  - id: "{unique_snake_case_id}"
+    tag: "{TAG_NAME}"                  # Bracket tag (e.g., SERVICE_CALL_FAILED), "null" if no tag, "dynamic" if tag varies
+    severity: "{DEBUG|INFO|WARNING|ERROR|CRITICAL}"
+    channel: "{monolog_channel}"
+    module: "{module_name}"
+    source: "{Namespace\\ClassName}"
+    message_template: "{log_message_with_{placeholders}}"
+    trigger: >
+      {1-3 sentences explaining what causes this log entry to be emitted}
+    indicates: "{category}"            # One of: external_integration_issue, expected_behavior, business_rule_rejection, data_quality_issue, internal_error
+    context_fields:                    # Monolog context/extra fields logged alongside the message
+      - "{field_name}"
+    common_in_tickets: false           # Set to true by /update-log-database when tag appears in >=30% of mapped tickets
+    example: "{realistic_log_line_as_it_would_appear_in_production}"

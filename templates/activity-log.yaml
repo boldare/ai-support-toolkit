@@ -1,0 +1,26 @@
+# Template: Activity Log
+# Auto-generated and manually updated per ticket.
+# Location: tickets/{ticket_id}/activity-log.yaml
+#
+# Each activity entry records what was done, when, and by what tool.
+# Duration is in seconds; null for manual steps where duration is unknown.
+#
+# Common action types:
+#   ticket_fetched              — Ticket details fetched from Jira
+#   log_request_prepared        — LogQL query generated
+#   data_request_prepared       — SQL queries generated
+#   log_analysis                — Logs analyzed
+#   communication_with_support  — Message sent to/received from support team
+#   communication_with_integration — Message sent to/received from integration team
+#   logs_received               — Log files placed in ticket directory
+#   data_received               — Production data results received
+#   response_sent               — Final response sent
+#   manual_analysis             — Manual investigation outside the toolkit
+
+ticket_id: "{ticket_id}"
+activities:
+  - timestamp: "{iso_timestamp}"
+    action: "{action_type}"
+    description: "{what_was_done}"
+    duration_seconds: null
+    source: "{script_or_prompt_name}"

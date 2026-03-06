@@ -1,0 +1,98 @@
+# Template: Knowledge Center Issue Pattern
+# Data file: data/knowledge-center/issues.yaml
+#
+# This template shows the schema for issue categories and a single issue pattern.
+# The actual issues.yaml will contain many patterns built from historical ticket analysis.
+
+version: "1.0"
+service: "{service_name}"
+last_updated: "{date}"
+total_patterns: 0
+total_tickets_classified: 0
+
+# Aggregate statistics (updated after each classification round)
+statistics:
+  by_service_area: {}       # e.g., { ModuleA: 90, ModuleB: 22 }
+  by_resolution_type: {}    # e.g., { external_integration_issue: 78, expected_behavior: 20 }
+  by_external_service: {}   # e.g., { ServiceX: 52, none: 27 }
+
+# Issue categories (high-level grouping)
+categories:
+  expected_behavior:
+    description: "System behaved as designed, user expectation was wrong"
+    default_action: "Explain expected behavior to support team"
+    ticket_count: 0
+  external_integration_issue:
+    description: "External service returned an error, timeout, or invalid/inconsistent data"
+    default_action: "Notify integration team with details (timestamps, identifiers, error messages)"
+    ticket_count: 0
+  business_rule_rejection:
+    description: "External system or our system correctly rejected a request based on business rules"
+    default_action: "Explain the rejection to support team in clear terms"
+    ticket_count: 0
+  actual_bug:
+    description: "Genuine bug in the service"
+    default_action: "Create development ticket with reproduction steps"
+    ticket_count: 0
+  data_quality_issue:
+    description: "Misalignment between data sources — establishment class, license, occupation codes"
+    default_action: "Identify which system holds wrong data and notify appropriate team"
+    ticket_count: 0
+  insufficient_info:
+    description: "Ticket lacks information needed for analysis"
+    default_action: "Generate follow-up questions for support team"
+    ticket_count: 0
+
+# Issue patterns (specific recurring issues)
+issue_patterns:
+  - id: "{pattern_id}"
+    title: "{human_readable_title}"
+    category: "{category_from_above}"
+    frequency: "{very_common|common|occasional|rare}"   # very_common: 10+, common: 5-9, occasional: 2-4, rare: 1
+    service_area: "{module_name}"
+    status: "confirmed"  # confirmed | draft (draft = newly discovered, pending review)
+
+    # Log signatures — combination of logs that indicate this issue
+    log_signatures:
+      required:
+        - log_type: "{LOG_TAG_IDENTIFIER}"
+          channel: "{monolog_channel}"
+          note: "{optional context for how to identify this specific signature}"
+      supporting:
+        - log_type: "{LOG_TAG_IDENTIFIER}"
+          channel: "{monolog_channel}"
+          note: "{optional context}"
+
+    # Root cause explanation
+    root_cause: |
+      {detailed_explanation_of_why_this_happens}
+
+    # How to verify this is the issue
+    verification_steps:
+      - "{step_1}"
+      - "{step_2}"
+
+    # Resolution template
+    resolution:
+      action: "{what_to_do}"
+      response_template: |
+        {message_template_with_placeholders}
+      respond_to: "{recipient}"
+
+    # Example tickets where this occurred
+    example_tickets:
+      - ticket: "{PROJ-XXXX}"
+        date: "{date}"
+        notes: "{brief_notes}"
+
+    # Related code paths
+    code_references:
+      - file: "{relative_file_path}"
+        lines: "{line_range}"          # e.g., "353-380"
+        context: "{what_this_code_does}"
+
+    # SQL queries for production data verification (optional — not all patterns need these)
+    data_queries:
+      - description: "{what_this_query_checks}"
+        template: |
+          {sql_query_with_placeholders}

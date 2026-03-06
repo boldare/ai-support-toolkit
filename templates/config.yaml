@@ -1,0 +1,95 @@
+# Service Configuration for M&S Log Analysis Toolkit
+# Fill in the fields below, then run /init-workspace to auto-detect
+# modules, channels, and integrations from your codebase.
+#
+# Fields marked [MANUAL] must be filled in by hand.
+# Fields marked [AUTO] are populated by /init-workspace — leave them as-is.
+
+# [MANUAL] Service identity
+service:
+  name: ""                    # e.g., "service-api"
+  display_name: ""            # e.g., "Service API"
+  description: ""             # Brief description of what this service does
+
+# [MANUAL] Jira Configuration
+# Connection details (base_url, email, token) come from .env — NOT stored here.
+jira:
+  project_key: ""             # e.g., "PROJ"
+  final_statuses:            # [MANUAL] Jira statuses that mean "ticket is done"
+    - "Done"                 # Defaults work for standard Jira workflows.
+    - "Resolved"             # Add custom statuses if your board uses them.
+    - "Closed"
+
+# [MANUAL] Service Classification
+# Used to identify which tickets on the shared board belong to this service.
+service_classification:
+  keywords:
+    # Add service identifiers, module names, and terms that appear in tickets
+    # - "my-service-name"
+    # - "module-name"
+  indicators:
+    # Add patterns that strongly indicate this service
+    # - pattern: "/api-path/"
+    #   type: "url_path"          # url_path | log_app_label | log_channel | field_reference
+    #   confidence: "high"        # high | medium | low
+
+# [MANUAL] Loki/Grafana Configuration
+loki:
+  app_label: ""               # e.g., "service-api-prod"
+  namespace: ""               # e.g., "namespace-prod"
+  cluster: ""                 # e.g., "prod"
+  timezone: ""                # e.g., "America/New_York"
+  short_label: ""             # e.g., "api-prod" — used for log file naming
+
+# [MANUAL] Identifiers to extract from ticket text
+# Define regex patterns for domain-specific identifiers found in support tickets.
+# These are used by fetch-ticket.sh to auto-extract relevant IDs.
+identifiers:
+  # - name: "account_ids"
+  #   pattern: "[A-Z]{2}-[0-9]{6}"         # e.g., "AC-123456"
+  #   description: "Customer account IDs"
+  # - name: "order_numbers"
+  #   pattern: "ORD-[0-9]{8}"              # e.g., "ORD-20260301"
+  #   description: "Order reference numbers"
+
+# [MANUAL] Database
+database:
+  type: ""                    # e.g., "postgresql", "mysql"
+
+# ---------------------------------------------------------------------------
+# Everything below is auto-detected by /init-workspace.
+# You can also fill these in manually if preferred.
+# ---------------------------------------------------------------------------
+
+# [AUTO] Logging Configuration
+logging:
+  channels:
+    module_exceptions: []
+    framework_exceptions: []
+    info: []
+    integration_clients: []
+    infrastructure: []
+    symfony_builtin:
+      - app
+      - request
+      - security
+      - doctrine
+  analysis_focus_severities:
+    - "CRITICAL"
+    - "ERROR"
+    - "WARNING"
+
+# [AUTO] Modules — detected from codebase structure
+modules: []
+
+# [AUTO] External Integrations — detected from codebase
+integrations: []
+
+# [AUTO] Response Routing
+response:
+  routing:
+    expected_behavior: "Respond to support team with explanation of expected system behavior"
+    external_integration_issue: "Respond to integration team with timestamps, identifiers, and error details"
+    business_rule_rejection: "Respond to support team with translated/explained rejection reason"
+    actual_bug: "Create a development ticket with reproduction steps"
+    insufficient_info: "Respond to support team requesting additional information"

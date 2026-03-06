@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M&amp;S Log Analysis Toolkit</title>
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-card: #1c2333;
+  --bg-hover: #252d3a;
+  --bg-expanded: #1a2232;
+  --border: #30363d;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --accent: #58a6ff;
+  --accent-dim: #1f6feb33;
+  --critical: #f85149;
+  --error: #f0883e;
+  --warning: #d29922;
+  --info: #58a6ff;
+  --debug: #6e7681;
+  --green: #3fb950;
+  --purple: #bc8cff;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+code, pre, .mono {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ---- Header ---- */
+.header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header h1 span { color: var(--text-secondary); font-weight: 400; font-size: 14px; }
+.stats-bar { display: flex; gap: 16px; flex-wrap: wrap; }
+.stat-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stat-item .stat-val { font-weight: 600; color: var(--accent); }
+
+/* ---- Main container ---- */
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+/* ---- Section ---- */
+.section { margin-bottom: 32px; }
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title .count {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ---- Dashboard Charts ---- */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.chart-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.chart-card h3 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+.chart-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.chart-bar-label {
+  width: 150px;
+  text-align: right;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chart-bar-track {
+  flex: 1;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  height: 20px;
+  overflow: hidden;
+  position: relative;
+}
+.chart-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+.chart-bar-value {
+  min-width: 36px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+/* ---- Badges ---- */
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.badge-critical { background: #f8514922; color: var(--critical); border: 1px solid #f8514944; }
+.badge-error { background: #f0883e22; color: var(--error); border: 1px solid #f0883e44; }
+.badge-warning { background: #d2992222; color: var(--warning); border: 1px solid #d2992244; }
+.badge-info { background: #58a6ff22; color: var(--info); border: 1px solid #58a6ff44; }
+.badge-debug { background: #6e768122; color: var(--debug); border: 1px solid #6e768144; }
+
+.badge-category {
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge-external_integration_issue { background: #f0883e22; color: var(--error); border: 1px solid #f0883e44; }
+.badge-expected_behavior { background: #3fb95022; color: var(--green); border: 1px solid #3fb95044; }
+.badge-internal_error { background: #f8514922; color: var(--critical); border: 1px solid #f8514944; }
+.badge-data_quality_issue { background: #d2992222; color: var(--warning); border: 1px solid #d2992244; }
+.badge-business_rule_rejection { background: #bc8cff22; color: var(--purple); border: 1px solid #bc8cff44; }
+.badge-actual_bug { background: #f8514922; color: var(--critical); border: 1px solid #f8514944; }
+.badge-insufficient_info { background: #6e768122; color: var(--debug); border: 1px solid #6e768144; }
+.badge-unknown { background: #6e768122; color: var(--debug); border: 1px solid #6e768144; }
+
+.badge-freq-very_common { background: #f8514922; color: var(--critical); }
+.badge-freq-common { background: #f0883e22; color: var(--error); }
+.badge-freq-occasional { background: #d2992222; color: var(--warning); }
+.badge-freq-rare { background: #6e768122; color: var(--debug); }
+
+.badge-status { padding: 1px 8px; border-radius: 10px; font-size: 11px; }
+.badge-confirmed { background: #3fb95022; color: var(--green); }
+.badge-suspected { background: #d2992222; color: var(--warning); }
+.badge-resolved { background: #58a6ff22; color: var(--info); }
+
+/* ---- Filters ---- */
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  align-items: center;
+}
+.filter-group { display: flex; align-items: center; gap: 4px; }
+.filter-group label { font-size: 12px; color: var(--text-secondary); }
+.filter-group select, .search-input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 5px 8px;
+  font-size: 13px;
+  outline: none;
+}
+.filter-group select:focus, .search-input:focus { border-color: var(--accent); }
+.search-input { flex: 1; min-width: 200px; }
+
+/* ---- Tables ---- */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table thead th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+  position: sticky;
+  top: 96px;
+  z-index: 10;
+}
+.data-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.data-table tbody tr:hover { background: var(--bg-hover); }
+.data-table tbody tr.expanded { background: var(--bg-expanded); }
+.data-table td { padding: 6px 12px; vertical-align: top; }
+.data-table .cell-truncate {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Detail Cards ---- */
+.detail-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  margin: 8px 12px 12px;
+}
+.detail-card h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+.detail-card h4:first-child { margin-top: 0; }
+.detail-card p { color: var(--text-primary); margin-bottom: 6px; font-size: 13px; }
+.detail-card pre {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.detail-card code {
+  background: var(--bg-primary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.detail-card ul, .detail-card ol { padding-left: 20px; margin-bottom: 8px; font-size: 13px; }
+.detail-card li { margin-bottom: 3px; }
+.cross-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px dashed var(--accent);
+}
+.cross-link:hover { text-decoration: none; border-bottom-style: solid; }
+
+.context-fields { display: flex; flex-wrap: wrap; gap: 4px; }
+.context-field {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-family: 'SF Mono', Consolas, monospace;
+  color: var(--text-secondary);
+}
+
+/* ---- Noise patterns ---- */
+.noise-toggle {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+.noise-header {
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+.noise-header:hover { background: var(--bg-hover); }
+.noise-header .arrow { transition: transform 0.2s; font-size: 12px; color: var(--text-secondary); }
+.noise-header.open .arrow { transform: rotate(90deg); }
+.noise-body { display: none; padding: 0 16px 16px; }
+.noise-body.open { display: block; }
+.noise-item {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+  font-size: 13px;
+}
+.noise-item:last-child { border-bottom: none; }
+.noise-item .noise-id { color: var(--accent); font-weight: 600; font-size: 12px; }
+.noise-item .noise-pattern {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: 12px;
+  display: inline-block;
+  margin: 4px 0;
+  word-break: break-all;
+}
+.noise-item .noise-desc { color: var(--text-secondary); font-size: 12px; }
+
+/* ---- Tickets mini-table ---- */
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.mini-table th {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.mini-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---- Highlight animation ---- */
+@keyframes highlight-flash {
+  0% { background: #d2992244; }
+  100% { background: transparent; }
+}
+.highlight-target {
+  animation: highlight-flash 1.5s ease-out;
+}
+
+/* ---- Loading state ---- */
+.loading {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.loading-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- Error state ---- */
+.error-msg {
+  background: #f8514922;
+  border: 1px solid #f8514944;
+  border-radius: 6px;
+  padding: 16px;
+  color: var(--critical);
+  font-size: 13px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .chart-bar-label { min-width: 100px; font-size: 12px; }
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Tab Navigation ---- */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  margin-top: 10px;
+  border-bottom: 1px solid var(--border);
+  margin-left: -24px;
+  margin-right: -24px;
+  margin-bottom: -16px;
+  padding: 0 24px;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+.tab-btn:hover { color: var(--text-primary); }
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ---- Page containers ---- */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ---- Templates page — drawer ---- */
+.template-drawer {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.template-drawer-header {
+  padding: 10px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+  transition: background 0.15s;
+}
+.template-drawer-header:hover { background: var(--bg-hover); }
+.template-drawer-header .arrow {
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.template-drawer.open .template-drawer-header .arrow { transform: rotate(90deg); }
+.template-drawer-header .drawer-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.template-drawer-header .drawer-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.template-drawer-body {
+  display: none;
+  padding: 16px;
+}
+.template-drawer.open .template-drawer-body {
+  display: block;
+  border-top: 2px solid var(--border);
+}
+
+.template-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .template-columns { grid-template-columns: 1fr; }
+}
+.template-col {
+  min-width: 0;
+  overflow: hidden;
+}
+.template-col h3 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.template-col pre {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+  max-height: 600px;
+  overflow-y: auto;
+}
+/* Single-column template (no example available) */
+.template-single pre {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+/* ---- Common in tickets indicator ---- */
+.ticket-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <h1>M&amp;S Log Analysis Toolkit <span id="service-name"></span></h1>
+    <div class="stats-bar" id="stats-bar"></div>
+  </div>
+  <div class="tab-bar" id="tab-bar">
+    <button class="tab-btn active" data-page="dashboard">Dashboard</button>
+    <button class="tab-btn" data-page="logs">Log Database</button>
+    <button class="tab-btn" data-page="knowledge">Knowledge Center</button>
+    <button class="tab-btn" data-page="templates">Templates</button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="loading" class="loading">
+    <div class="loading-spinner"></div>
+    <div>Loading knowledge stores...</div>
+  </div>
+  <div id="error-container"></div>
+  <div id="app" style="display:none">
+
+    <!-- Dashboard Page -->
+    <div class="page active" id="page-dashboard">
+      <div class="section">
+        <div class="section-title">Dashboard</div>
+        <div class="dashboard-grid" id="dashboard-grid"></div>
+      </div>
+    </div>
+
+    <!-- Log Database Page -->
+    <div class="page" id="page-logs">
+      <div class="section" id="log-database-section">
+        <div class="section-title">Log Database <span class="count" id="log-count"></span></div>
+        <div class="filters" id="log-filters"></div>
+        <table class="data-table" id="log-table">
+          <thead>
+            <tr>
+              <th>Tag</th>
+              <th>Severity</th>
+              <th>Channel</th>
+              <th>Module</th>
+              <th>Source</th>
+              <th>Trigger</th>
+            </tr>
+          </thead>
+          <tbody id="log-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Knowledge Center Page -->
+    <div class="page" id="page-knowledge">
+      <!-- Noise Patterns -->
+      <div class="noise-toggle" id="noise-section">
+        <div class="noise-header" id="noise-header">
+          <span>Noise Patterns <span class="count" id="noise-count"></span></span>
+          <span class="arrow">&#9654;</span>
+        </div>
+        <div class="noise-body" id="noise-body"></div>
+      </div>
+
+      <div class="section" id="knowledge-center-section">
+        <div class="section-title">Issue Patterns <span class="count" id="issue-count"></span></div>
+        <div class="filters" id="issue-filters"></div>
+        <table class="data-table" id="issue-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Frequency</th>
+              <th>Service Area</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="issue-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Templates Page -->
+    <div class="page" id="page-templates">
+      <div class="section">
+        <div class="section-title">Templates <span class="count" id="template-count"></span></div>
+        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:24px">
+          Schema templates alongside real examples from the data stores. Click a row to expand.
+        </p>
+        <div id="templates-content"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// Path Resolution
+// ============================================================================
+// Auto-detect paths based on URL structure.
+// Works in both layouts:
+//   Current: /ui/index.html         → toolkit=/, workspace=/
+//   New:     /toolkit/ui/index.html → toolkit=/toolkit/, workspace=/
+const _pagePath = window.location.pathname;
+const _uiDir = _pagePath.substring(0, _pagePath.lastIndexOf('/') + 1);
+const _toolkitDir = _uiDir.replace(/ui\/$/, '');
+const _workspaceDir = _toolkitDir === '/' ? '/' : _toolkitDir.replace(/[^/]+\/$/, '');
+
+function wsPath(relativePath) { return _workspaceDir + relativePath; }
+function tkPath(relativePath) { return _toolkitDir + relativePath; }
+
+// ============================================================================
+// State
+// ============================================================================
+let logData = null;
+let issuesData = null;
+let templateTexts = {};
+let exampleTexts = {};
+let logTypesById = {};
+let issueById = {};
+let logTypeToIssues = {};
+let expandedLogRows = new Set();
+let expandedIssueRows = new Set();
+
+// ============================================================================
+// Data Loading
+// ============================================================================
+// Template manifest: key -> { file, label, format, examplePath (optional) }
+const TEMPLATE_MANIFEST = [
+  { key: 'logTypes',       file: 'log-types.yaml',      label: 'Log Database Entry',   format: 'yaml', hasLiveExample: true },
+  { key: 'issues',         file: 'issues.yaml',         label: 'Issue Pattern',        format: 'yaml', hasLiveExample: true },
+  { key: 'ticketDetails',  file: 'ticket-details.yaml', label: 'Ticket Details',       format: 'yaml', exampleFn: () => wsPath('tickets/') },
+  { key: 'activityLog',    file: 'activity-log.yaml',   label: 'Activity Log',         format: 'yaml', exampleFn: () => wsPath('tickets/') },
+  { key: 'config',         file: 'config.yaml',         label: 'Service Configuration',format: 'yaml', exampleFn: () => wsPath('config.yaml') },
+  { key: 'logRequest',     file: 'log-request.md',      label: 'Log Request',          format: 'md' },
+  { key: 'analysis',       file: 'analysis.md',         label: 'Analysis Report',      format: 'md' },
+  { key: 'dataRequest',    file: 'data-request.md',     label: 'Data Request',         format: 'md' },
+  { key: 'workHistory',    file: 'work-history.md',     label: 'Work History',         format: 'md' },
+];
+
+async function loadData() {
+  try {
+    // Load config.yaml for service name
+    const configRes = await fetch(wsPath('config.yaml'));
+    if (configRes.ok) {
+      const configData = jsyaml.load(await configRes.text());
+      const svcName = configData?.service?.name || '';
+      document.getElementById('service-name').textContent = svcName;
+      document.title = 'M&S Log Analysis Toolkit — ' + (configData?.service?.display_name || svcName);
+    }
+
+    // Core data files (required)
+    const [logRes, issuesRes] = await Promise.all([
+      fetch(wsPath('data/log-database/log-types.yaml')),
+      fetch(wsPath('data/knowledge-center/issues.yaml')),
+    ]);
+
+    if (!logRes.ok) throw new Error('Failed to load log-types.yaml: ' + logRes.status);
+    if (!issuesRes.ok) throw new Error('Failed to load issues.yaml: ' + issuesRes.status);
+
+    logData = jsyaml.load(await logRes.text());
+    issuesData = jsyaml.load(await issuesRes.text());
+
+    // Templates + example files (best-effort, don't fail on 404)
+    const fetches = [];
+    TEMPLATE_MANIFEST.forEach(t => {
+      fetches.push(
+        fetch(tkPath('templates/' + t.file)).then(r => r.ok ? r.text() : '').catch(() => '')
+      );
+      if (t.exampleFn) {
+        const exPath = t.exampleFn();
+        fetches.push(
+          fetch(exPath).then(r => r.ok ? r.text() : '').catch(() => '')
+        );
+      } else {
+        fetches.push(Promise.resolve(''));
+      }
+    });
+
+    const results = await Promise.all(fetches);
+    TEMPLATE_MANIFEST.forEach((t, i) => {
+      templateTexts[t.key] = results[i * 2];
+      exampleTexts[t.key] = results[i * 2 + 1];
+    });
+
+    buildIndexes();
+    renderAll();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  } catch (err) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-container').innerHTML =
+      '<div class="error-msg">Error loading data: ' + escapeHtml(err.message) + '</div>';
+    console.error(err);
+  }
+}
+
+function buildIndexes() {
+  // Index log types
+  (logData.log_types || []).forEach(lt => {
+    logTypesById[lt.id] = lt;
+  });
+
+  // Index issues
+  (issuesData.issue_patterns || []).forEach(ip => {
+    issueById[ip.id] = ip;
+  });
+
+  // Build reverse index: log_type_id -> [issue_ids]
+  (issuesData.issue_patterns || []).forEach(ip => {
+    const sigs = ip.log_signatures || {};
+    const allRefs = [
+      ...(sigs.required || []).map(s => s.log_type),
+      ...(sigs.supporting || []).map(s => s.log_type)
+    ];
+    allRefs.forEach(ltId => {
+      if (!logTypeToIssues[ltId]) logTypeToIssues[ltId] = [];
+      if (!logTypeToIssues[ltId].includes(ip.id)) {
+        logTypeToIssues[ltId].push(ip.id);
+      }
+    });
+  });
+}
+
+// ============================================================================
+// Render All
+// ============================================================================
+function renderAll() {
+  renderStats();
+  renderDashboard();
+  renderLogFilters();
+  renderLogTypes();
+  renderNoisePatterns();
+  renderIssueFilters();
+  renderIssuePatterns();
+  renderTemplates();
+}
+
+// ============================================================================
+// Stats Bar
+// ============================================================================
+function renderStats() {
+  const totalLogs = (logData.log_types || []).length;
+  const totalNoise = (logData.noise_patterns || []).length;
+  const totalPatterns = issuesData.total_patterns || (issuesData.issue_patterns || []).length;
+  const totalTickets = issuesData.total_tickets_classified || 0;
+
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-item"><span class="stat-val">${totalLogs}</span> log types</div>
+    <div class="stat-item"><span class="stat-val">${totalNoise}</span> noise patterns</div>
+    <div class="stat-item"><span class="stat-val">${totalPatterns}</span> issue patterns</div>
+    <div class="stat-item"><span class="stat-val">${totalTickets}</span> tickets classified</div>
+  `;
+}
+
+// ============================================================================
+// Dashboard
+// ============================================================================
+function renderDashboard() {
+  const grid = document.getElementById('dashboard-grid');
+  const stats = issuesData.statistics || {};
+  const logTypes = logData.log_types || [];
+
+  // Chart colors
+  const barColors = ['#58a6ff', '#3fb950', '#f0883e', '#f85149', '#d29922', '#bc8cff', '#6e7681', '#79c0ff'];
+
+  // 1. By Resolution Type (Category)
+  const byCat = stats.by_resolution_type || {};
+  grid.innerHTML = '';
+  grid.appendChild(createChart('By Resolution Type', byCat, barColors));
+
+  // 2. By Service Area
+  const byArea = stats.by_service_area || {};
+  grid.appendChild(createChart('By Service Area', byArea, barColors));
+
+  // 3. By Severity (from log_types)
+  const bySev = {};
+  logTypes.forEach(lt => {
+    bySev[lt.severity] = (bySev[lt.severity] || 0) + 1;
+  });
+  const sevOrder = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'];
+  const sevSorted = {};
+  sevOrder.forEach(s => { if (bySev[s]) sevSorted[s] = bySev[s]; });
+  const sevColors = { CRITICAL: '#f85149', ERROR: '#f0883e', WARNING: '#d29922', INFO: '#58a6ff', DEBUG: '#6e7681' };
+  grid.appendChild(createChart('By Severity (Log Types)', sevSorted, null, sevColors));
+
+  // 4. By Module (from log_types)
+  const byMod = {};
+  logTypes.forEach(lt => {
+    byMod[lt.module] = (byMod[lt.module] || 0) + 1;
+  });
+  const modSorted = Object.fromEntries(
+    Object.entries(byMod).sort((a, b) => b[1] - a[1])
+  );
+  grid.appendChild(createChart('By Module (Log Types)', modSorted, barColors));
+}
+
+function createChart(title, data, defaultColors, colorMap) {
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+  const maxVal = Math.max(...Object.values(data), 1);
+  let html = `<h3>${escapeHtml(title)}</h3>`;
+
+  Object.entries(data).forEach(([label, value], i) => {
+    const pct = Math.round((value / maxVal) * 100);
+    const color = colorMap ? (colorMap[label] || '#58a6ff') : (defaultColors[i % defaultColors.length]);
+    const displayLabel = formatLabel(label);
+    html += `
+      <div class="chart-bar-row">
+        <span class="chart-bar-label" title="${escapeHtml(label)}">${escapeHtml(displayLabel)}</span>
+        <div class="chart-bar-track">
+          <div class="chart-bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <span class="chart-bar-value">${value}</span>
+      </div>`;
+  });
+
+  card.innerHTML = html;
+  return card;
+}
+
+// ============================================================================
+// Log Database — Filters
+// ============================================================================
+function getUniqueValues(arr, key) {
+  const vals = new Set();
+  arr.forEach(item => { if (item[key]) vals.add(item[key]); });
+  return [...vals].sort();
+}
+
+function renderLogFilters() {
+  const logTypes = logData.log_types || [];
+  const modules = getUniqueValues(logTypes, 'module');
+  const severities = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'];
+  const indicates = getUniqueValues(logTypes, 'indicates');
+
+  const container = document.getElementById('log-filters');
+  container.innerHTML = `
+    <input type="text" class="search-input" id="log-search" placeholder="Search log types (id, tag, message, trigger, source)...">
+    <div class="filter-group">
+      <label>Module:</label>
+      <select id="log-filter-module"><option value="">All</option>${modules.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('')}</select>
+    </div>
+    <div class="filter-group">
+      <label>Severity:</label>
+      <select id="log-filter-severity"><option value="">All</option>${severities.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
+    </div>
+    <div class="filter-group">
+      <label>Indicates:</label>
+      <select id="log-filter-indicates"><option value="">All</option>${indicates.map(i => `<option value="${escapeHtml(i)}">${escapeHtml(i)}</option>`).join('')}</select>
+    </div>
+    <div class="filter-group">
+      <label>Common in tickets:</label>
+      <select id="log-filter-tickets"><option value="">All</option><option value="true">Yes</option><option value="false">No</option></select>
+    </div>
+  `;
+
+  container.querySelector('#log-search').addEventListener('input', renderLogTypes);
+  container.querySelectorAll('select').forEach(sel => sel.addEventListener('change', renderLogTypes));
+}
+
+// ============================================================================
+// Log Database — Table
+// ============================================================================
+function getFilteredLogTypes() {
+  const logTypes = logData.log_types || [];
+  const search = (document.getElementById('log-search')?.value || '').toLowerCase();
+  const modFilter = document.getElementById('log-filter-module')?.value || '';
+  const sevFilter = document.getElementById('log-filter-severity')?.value || '';
+  const indFilter = document.getElementById('log-filter-indicates')?.value || '';
+  const tickFilter = document.getElementById('log-filter-tickets')?.value || '';
+
+  return logTypes.filter(lt => {
+    if (modFilter && lt.module !== modFilter) return false;
+    if (sevFilter && lt.severity !== sevFilter) return false;
+    if (indFilter && lt.indicates !== indFilter) return false;
+    if (tickFilter === 'true' && !lt.common_in_tickets) return false;
+    if (tickFilter === 'false' && lt.common_in_tickets) return false;
+    if (search) {
+      const haystack = [lt.id, lt.tag, lt.message_template, lt.trigger, lt.source, lt.channel]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+}
+
+function renderLogTypes() {
+  const filtered = getFilteredLogTypes();
+  const tbody = document.getElementById('log-table-body');
+  document.getElementById('log-count').textContent = filtered.length;
+
+  let html = '';
+  filtered.forEach(lt => {
+    const isExpanded = expandedLogRows.has(lt.id);
+    const sevClass = 'badge badge-' + lt.severity.toLowerCase();
+    const tagDisplay = lt.tag || '—';
+    const sourceShort = (lt.source || '').split('\\').pop();
+    const triggerShort = (lt.trigger || '').substring(0, 80);
+    const ticketDot = lt.common_in_tickets ? '<span class="ticket-dot" title="Common in tickets"></span>' : '';
+
+    html += `<tr class="${isExpanded ? 'expanded' : ''}" data-log-id="${escapeHtml(lt.id)}" id="log-${escapeHtml(lt.id)}">
+      <td><span class="mono" style="font-size:12px">${escapeHtml(tagDisplay)}</span>${ticketDot}</td>
+      <td><span class="${sevClass}">${lt.severity}</span></td>
+      <td><span class="mono" style="font-size:12px;color:var(--text-secondary)">${escapeHtml(lt.channel)}</span></td>
+      <td>${escapeHtml(lt.module)}</td>
+      <td class="cell-truncate" title="${escapeHtml(lt.source || '')}">${escapeHtml(sourceShort)}</td>
+      <td class="cell-truncate" title="${escapeHtml(lt.trigger || '')}">${escapeHtml(triggerShort)}${lt.trigger && lt.trigger.length > 80 ? '...' : ''}</td>
+    </tr>`;
+
+    if (isExpanded) {
+      html += `<tr class="expanded"><td colspan="6">${renderLogDetail(lt)}</td></tr>`;
+    }
+  });
+
+  tbody.innerHTML = html;
+
+  // Attach click handlers
+  tbody.querySelectorAll('tr[data-log-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      const id = row.dataset.logId;
+      if (expandedLogRows.has(id)) expandedLogRows.delete(id);
+      else expandedLogRows.add(id);
+      renderLogTypes();
+    });
+  });
+}
+
+function renderLogDetail(lt) {
+  const referencedBy = logTypeToIssues[lt.id] || [];
+  let refsHtml = '';
+  if (referencedBy.length > 0) {
+    refsHtml = '<h4>Referenced by Issues</h4><ul>' +
+      referencedBy.map(iid => {
+        const issue = issueById[iid];
+        const title = issue ? issue.title : iid;
+        return `<li><a class="cross-link" onclick="scrollToIssue('${escapeHtml(iid)}')">${escapeHtml(title)}</a></li>`;
+      }).join('') + '</ul>';
+  }
+
+  const ctxFields = (lt.context_fields || []);
+  const ctxHtml = ctxFields.length > 0 ?
+    '<h4>Context Fields</h4><div class="context-fields">' +
+    ctxFields.map(f => `<span class="context-field">${escapeHtml(f)}</span>`).join('') +
+    '</div>' : '';
+
+  return `<div class="detail-card" onclick="event.stopPropagation()">
+    <h4>Message Template</h4>
+    <pre>${escapeHtml(lt.message_template || '')}</pre>
+    <h4>Trigger</h4>
+    <p>${escapeHtml(lt.trigger || '')}</p>
+    <h4>Source</h4>
+    <p><code>${escapeHtml(lt.source || '')}</code></p>
+    <h4>Indicates</h4>
+    <p><span class="badge-category badge-${lt.indicates || ''}">${escapeHtml(lt.indicates || '')}</span></p>
+    ${ctxHtml}
+    ${lt.example ? '<h4>Example</h4><pre>' + escapeHtml(lt.example) + '</pre>' : ''}
+    ${refsHtml}
+  </div>`;
+}
+
+// ============================================================================
+// Noise Patterns
+// ============================================================================
+function renderNoisePatterns() {
+  const patterns = logData.noise_patterns || [];
+  document.getElementById('noise-count').textContent = patterns.length;
+
+  const body = document.getElementById('noise-body');
+  body.innerHTML = patterns.map(np => `
+    <div class="noise-item">
+      <div class="noise-id">${escapeHtml(np.id)}</div>
+      <div class="noise-pattern">${escapeHtml(np.pattern)}</div>
+      <div class="noise-desc">${escapeHtml(np.description || '')}</div>
+    </div>
+  `).join('');
+
+  const header = document.getElementById('noise-header');
+  header.addEventListener('click', () => {
+    header.classList.toggle('open');
+    body.classList.toggle('open');
+  });
+}
+
+// ============================================================================
+// Templates Page
+// ============================================================================
+function getLiveExample(key) {
+  // For logTypes and issues, serialize the first entry from loaded data
+  if (key === 'logTypes') {
+    const first = (logData.log_types || [])[0];
+    return first ? jsyaml.dump([first], { lineWidth: 100, noRefs: true }) : '';
+  }
+  if (key === 'issues') {
+    const first = (issuesData.issue_patterns || [])[0];
+    return first ? jsyaml.dump([first], { lineWidth: 100, noRefs: true }) : '';
+  }
+  return '';
+}
+
+function renderTemplates() {
+  const container = document.getElementById('templates-content');
+  let html = '';
+
+  TEMPLATE_MANIFEST.forEach(t => {
+    const tplText = templateTexts[t.key] || '';
+    if (!tplText) return; // skip templates that failed to load
+
+    // Determine example text
+    let example = t.hasLiveExample ? getLiveExample(t.key) : (exampleTexts[t.key] || '');
+    const hasExample = !!example.trim();
+    const formatBadge = t.format === 'yaml' ? 'YAML' : 'Markdown';
+
+    html += `<div class="template-drawer" data-tpl-key="${escapeHtml(t.key)}">
+      <div class="template-drawer-header">
+        <span class="arrow">&#9654;</span>
+        <span class="drawer-title">${escapeHtml(t.label)}</span>
+        <span class="drawer-meta">${escapeHtml(t.file)} &middot; ${formatBadge}</span>
+      </div>
+      <div class="template-drawer-body">`;
+
+    if (hasExample) {
+      html += `<div class="template-columns">
+        <div class="template-col">
+          <h3>Template Schema</h3>
+          <pre>${escapeHtml(tplText)}</pre>
+        </div>
+        <div class="template-col">
+          <h3>Example</h3>
+          <pre>${escapeHtml(example)}</pre>
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="template-single">
+        <pre>${escapeHtml(tplText)}</pre>
+      </div>`;
+    }
+
+    html += `</div></div>`;
+  });
+
+  container.innerHTML = html;
+
+  // Set count badge
+  const count = container.querySelectorAll('.template-drawer').length;
+  document.getElementById('template-count').textContent = count;
+
+  // Attach drawer toggle handlers
+  container.querySelectorAll('.template-drawer-header').forEach(header => {
+    header.addEventListener('click', () => {
+      header.closest('.template-drawer').classList.toggle('open');
+    });
+  });
+}
+
+// ============================================================================
+// Knowledge Center — Filters
+// ============================================================================
+function renderIssueFilters() {
+  const issues = issuesData.issue_patterns || [];
+  const categories = Object.keys(issuesData.categories || {});
+  const areas = getUniqueValues(issues, 'service_area');
+  const freqs = ['very_common', 'common', 'occasional', 'rare'];
+
+  const container = document.getElementById('issue-filters');
+  container.innerHTML = `
+    <input type="text" class="search-input" id="issue-search" placeholder="Search issues (id, title, root cause, resolution)...">
+    <div class="filter-group">
+      <label>Category:</label>
+      <select id="issue-filter-category"><option value="">All</option>${categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select>
+    </div>
+    <div class="filter-group">
+      <label>Service Area:</label>
+      <select id="issue-filter-area"><option value="">All</option>${areas.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('')}</select>
+    </div>
+    <div class="filter-group">
+      <label>Frequency:</label>
+      <select id="issue-filter-freq"><option value="">All</option>${freqs.map(f => `<option value="${f}">${f.replace('_', ' ')}</option>`).join('')}</select>
+    </div>
+  `;
+
+  container.querySelector('#issue-search').addEventListener('input', renderIssuePatterns);
+  container.querySelectorAll('select').forEach(sel => sel.addEventListener('change', renderIssuePatterns));
+}
+
+// ============================================================================
+// Knowledge Center — Table
+// ============================================================================
+function getFilteredIssues() {
+  const issues = issuesData.issue_patterns || [];
+  const search = (document.getElementById('issue-search')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('issue-filter-category')?.value || '';
+  const areaFilter = document.getElementById('issue-filter-area')?.value || '';
+  const freqFilter = document.getElementById('issue-filter-freq')?.value || '';
+
+  return issues.filter(ip => {
+    if (catFilter && ip.category !== catFilter) return false;
+    if (areaFilter && ip.service_area !== areaFilter) return false;
+    if (freqFilter && ip.frequency !== freqFilter) return false;
+    if (search) {
+      const haystack = [ip.id, ip.title, ip.root_cause, ip.resolution?.action, ip.resolution?.response_template]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+}
+
+function renderIssuePatterns() {
+  const filtered = getFilteredIssues();
+  const tbody = document.getElementById('issue-table-body');
+  document.getElementById('issue-count').textContent = filtered.length;
+
+  let html = '';
+  filtered.forEach(ip => {
+    const isExpanded = expandedIssueRows.has(ip.id);
+    html += `<tr class="${isExpanded ? 'expanded' : ''}" data-issue-id="${escapeHtml(ip.id)}" id="issue-${escapeHtml(ip.id)}">
+      <td>${escapeHtml(ip.title)}</td>
+      <td><span class="badge-category badge-${ip.category || ''}">${escapeHtml(ip.category || '')}</span></td>
+      <td><span class="badge badge-freq-${ip.frequency || ''}">${escapeHtml((ip.frequency || '').replace('_', ' '))}</span></td>
+      <td>${escapeHtml(ip.service_area || '')}</td>
+      <td><span class="badge badge-${ip.status || ''}">${escapeHtml(ip.status || '')}</span></td>
+    </tr>`;
+
+    if (isExpanded) {
+      html += `<tr class="expanded"><td colspan="5">${renderIssueDetail(ip)}</td></tr>`;
+    }
+  });
+
+  tbody.innerHTML = html;
+
+  tbody.querySelectorAll('tr[data-issue-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      const id = row.dataset.issueId;
+      if (expandedIssueRows.has(id)) expandedIssueRows.delete(id);
+      else expandedIssueRows.add(id);
+      renderIssuePatterns();
+    });
+  });
+}
+
+function renderIssueDetail(ip) {
+  // Log signatures
+  const sigs = ip.log_signatures || {};
+  let sigsHtml = '';
+  if (sigs.required?.length || sigs.supporting?.length) {
+    sigsHtml = '<h4>Log Signatures</h4>';
+    if (sigs.required?.length) {
+      sigsHtml += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:4px"><strong>Required:</strong></p><ul>';
+      sigs.required.forEach(s => {
+        const ltLink = logTypesById[s.log_type]
+          ? `<a class="cross-link" onclick="scrollToLog('${escapeHtml(s.log_type)}')">${escapeHtml(s.log_type)}</a>`
+          : `<code>${escapeHtml(s.log_type)}</code>`;
+        sigsHtml += `<li>${ltLink} <span style="color:var(--text-muted)">(${escapeHtml(s.channel || '')})</span>`;
+        if (s.note) sigsHtml += `<br><span style="font-size:12px;color:var(--text-secondary)">${escapeHtml(s.note)}</span>`;
+        sigsHtml += '</li>';
+      });
+      sigsHtml += '</ul>';
+    }
+    if (sigs.supporting?.length) {
+      sigsHtml += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:4px"><strong>Supporting:</strong></p><ul>';
+      sigs.supporting.forEach(s => {
+        const ltLink = logTypesById[s.log_type]
+          ? `<a class="cross-link" onclick="scrollToLog('${escapeHtml(s.log_type)}')">${escapeHtml(s.log_type)}</a>`
+          : `<code>${escapeHtml(s.log_type)}</code>`;
+        sigsHtml += `<li>${ltLink} <span style="color:var(--text-muted)">(${escapeHtml(s.channel || '')})</span>`;
+        if (s.note) sigsHtml += `<br><span style="font-size:12px;color:var(--text-secondary)">${escapeHtml(s.note)}</span>`;
+        sigsHtml += '</li>';
+      });
+      sigsHtml += '</ul>';
+    }
+  }
+
+  // Verification steps
+  const steps = ip.verification_steps || [];
+  const stepsHtml = steps.length > 0 ?
+    '<h4>Verification Steps</h4><ol>' + steps.map(s => `<li>${escapeHtml(s)}</li>`).join('') + '</ol>' : '';
+
+  // Resolution
+  const res = ip.resolution || {};
+  let resHtml = '';
+  if (res.action || res.response_template) {
+    resHtml = '<h4>Resolution</h4>';
+    if (res.action) resHtml += `<p><strong>Action:</strong> ${escapeHtml(res.action)}</p>`;
+    if (res.respond_to) resHtml += `<p><strong>Respond to:</strong> <code>${escapeHtml(res.respond_to)}</code></p>`;
+    if (res.response_template) resHtml += `<pre>${escapeHtml(res.response_template)}</pre>`;
+  }
+
+  // Example tickets
+  const tickets = ip.example_tickets || [];
+  let ticketsHtml = '';
+  if (tickets.length > 0) {
+    ticketsHtml = '<h4>Example Tickets</h4><table class="mini-table"><thead><tr><th>Ticket</th><th>Date</th><th>Notes</th></tr></thead><tbody>';
+    tickets.forEach(t => {
+      ticketsHtml += `<tr><td><code>${escapeHtml(t.ticket)}</code></td><td>${escapeHtml(t.date || '')}</td><td>${escapeHtml(t.notes || '')}</td></tr>`;
+    });
+    ticketsHtml += '</tbody></table>';
+  }
+
+  // Code references
+  const codeRefs = ip.code_references || [];
+  let codeHtml = '';
+  if (codeRefs.length > 0) {
+    codeHtml = '<h4>Code References</h4><ul>';
+    codeRefs.forEach(cr => {
+      let ref = `<code>${escapeHtml(cr.file || '')}</code>`;
+      if (cr.lines) ref += ` <span style="color:var(--text-secondary)">L${escapeHtml(cr.lines)}</span>`;
+      if (cr.context) ref += ` — ${escapeHtml(cr.context)}`;
+      codeHtml += `<li>${ref}</li>`;
+    });
+    codeHtml += '</ul>';
+  }
+
+  return `<div class="detail-card" onclick="event.stopPropagation()">
+    <h4>Root Cause</h4>
+    <p>${escapeHtml(ip.root_cause || '').replace(/\n/g, '<br>')}</p>
+    ${sigsHtml}
+    ${stepsHtml}
+    ${resHtml}
+    ${ticketsHtml}
+    ${codeHtml}
+  </div>`;
+}
+
+// ============================================================================
+// Tab Navigation
+// ============================================================================
+function navigateTo(pageName, updateHash) {
+  // Deactivate all pages and tabs
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+
+  // Activate the target page and tab
+  const page = document.getElementById('page-' + pageName);
+  const tab = document.querySelector(`.tab-btn[data-page="${pageName}"]`);
+  if (page) page.classList.add('active');
+  if (tab) tab.classList.add('active');
+
+  // Update hash unless suppressed (to avoid loops)
+  if (updateHash !== false) {
+    history.replaceState(null, '', '#' + pageName);
+  }
+}
+
+function initTabs() {
+  document.getElementById('tab-bar').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    navigateTo(btn.dataset.page);
+    window.scrollTo({ top: 0 });
+  });
+}
+
+// ============================================================================
+// Cross-Link Navigation
+// ============================================================================
+function scrollToLog(logId) {
+  // Switch to logs page first
+  navigateTo('logs');
+
+  // Expand the log row
+  expandedLogRows.add(logId);
+  renderLogTypes();
+
+  // Reset filters to show all so the row is visible
+  const el = document.getElementById('log-' + logId);
+  if (!el) {
+    document.getElementById('log-search').value = '';
+    document.getElementById('log-filter-module').value = '';
+    document.getElementById('log-filter-severity').value = '';
+    document.getElementById('log-filter-indicates').value = '';
+    document.getElementById('log-filter-tickets').value = '';
+    expandedLogRows.add(logId);
+    renderLogTypes();
+  }
+
+  requestAnimationFrame(() => {
+    const target = document.getElementById('log-' + logId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('highlight-target');
+      setTimeout(() => target.classList.remove('highlight-target'), 1500);
+    }
+  });
+}
+
+function scrollToIssue(issueId) {
+  // Switch to knowledge page first
+  navigateTo('knowledge');
+
+  expandedIssueRows.add(issueId);
+  renderIssuePatterns();
+
+  const el = document.getElementById('issue-' + issueId);
+  if (!el) {
+    document.getElementById('issue-search').value = '';
+    document.getElementById('issue-filter-category').value = '';
+    document.getElementById('issue-filter-area').value = '';
+    document.getElementById('issue-filter-freq').value = '';
+    expandedIssueRows.add(issueId);
+    renderIssuePatterns();
+  }
+
+  requestAnimationFrame(() => {
+    const target = document.getElementById('issue-' + issueId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('highlight-target');
+      setTimeout(() => target.classList.remove('highlight-target'), 1500);
+    }
+  });
+}
+
+// ============================================================================
+// Handle URL hash on load (deep linking)
+// ============================================================================
+function handleHash() {
+  const hash = window.location.hash;
+  if (!hash) return;
+
+  const pageMap = { '#dashboard': 'dashboard', '#logs': 'logs', '#knowledge': 'knowledge', '#templates': 'templates' };
+
+  // Direct page hashes
+  if (pageMap[hash]) {
+    navigateTo(pageMap[hash], false);
+    return;
+  }
+
+  // Deep-link into specific items
+  if (hash.startsWith('#log-')) {
+    const id = hash.substring(5);
+    if (logTypesById[id]) scrollToLog(id);
+  } else if (hash.startsWith('#issue-')) {
+    const id = hash.substring(7);
+    if (issueById[id]) scrollToIssue(id);
+  }
+}
+
+// ============================================================================
+// Utils
+// ============================================================================
+function formatLabel(str) {
+  if (!str) return '';
+  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ============================================================================
+// Init
+// ============================================================================
+initTabs();
+loadData().then(() => {
+  // Apply hash or default to dashboard
+  if (window.location.hash) {
+    handleHash();
+  } else {
+    navigateTo('dashboard');
+  }
+});
+window.addEventListener('hashchange', handleHash);
+</script>
+</body>
+</html>
