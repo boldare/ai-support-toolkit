@@ -83,7 +83,6 @@ Then in Claude Code:
 | `/update-log-database` | Map unmapped ticket logs into the Log Database (10 per batch) |
 | `/init-knowledge-center` | Build the Knowledge Center from Jira ticket analysis |
 | `/update-knowledge-center` | Consolidate draft KC patterns, deduplicate, promote to confirmed |
-| `/validate-log-standards` | Validate codebase logging practices against standards |
 
 Every workflow skill auto-logs its activity and regenerates the weekly work history.
 
